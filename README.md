@@ -25,7 +25,7 @@ source install/setup.bash
 ```
 
 ## Khởi chạy
-**Terminal 1
+**Terminal 1:**
 ```bash
 9router
 ```
