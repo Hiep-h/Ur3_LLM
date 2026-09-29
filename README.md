@@ -25,13 +25,17 @@ source install/setup.bash
 ```
 
 ## Khởi chạy
-**Terminal 1 (Mô phỏng Gazebo & MoveIt 2):**
+**Terminal 1
+```bash
+9router
+```
+**Terminal 2 (Mô phỏng Gazebo & MoveIt 2):**
 ```bash
 source install/setup.bash
 ros2 launch ur3_llm_control llm_robot.launch.py
 ```
 
-**Terminal 2 (Bộ điều phối tác vụ LLM):**
+**Terminal 3 (Bộ điều phối tác vụ LLM):**
 ```bash
 source install/setup.bash
 ros2 run ur3_llm_control skill_executor --ros-args -p use_sim_time:=true
