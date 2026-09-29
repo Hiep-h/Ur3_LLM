@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+import os
+import yaml
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import TransformStamped, Pose
+from tf2_ros import StaticTransformBroadcaster
+from ament_index_python.packages import get_package_share_directory
+from moveit_msgs.msg import CollisionObject, PlanningScene
+from moveit_msgs.srv import ApplyPlanningScene
+from shape_msgs.msg import SolidPrimitive
+
+
+class ScenePublisher(Node):
+    def __init__(self):
+        super().__init__("scene_publisher")
+
+        share_dir = get_package_share_directory("ur3_llm_control")
+        scene_path = os.path.join(share_dir, "config", "scene.yaml")
+        with open(scene_path, "r") as f:
+            self.scene_cfg = yaml.safe_load(f)
+
+        self.base_frame = self.scene_cfg.get("frame_id", "base_link")
+        self.broadcaster = StaticTransformBroadcaster(self)
+
+        self._publish_all_tf()
+        self._add_collision_boxes()
+
+        self.get_logger().info("Scene publisher: da publish TF cho tat ca object/zone")
+
+    def _make_transform(self, frame_name: str, xyz: dict) -> TransformStamped:
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = self.base_frame
+        t.child_frame_id = frame_name
+        t.transform.translation.x = float(xyz["x"])
+        t.transform.translation.y = float(xyz["y"])
+        t.transform.translation.z = float(xyz["z"])
+        t.transform.rotation.w = 1.0
+        return t
+
+    def _publish_all_tf(self):
+        transforms = []
+        for name, xyz in self.scene_cfg.get("objects", {}).items():
+            transforms.append(self._make_transform(name, xyz))
+        for name, xyz in self.scene_cfg.get("zones", {}).items():
+            transforms.append(self._make_transform(name, xyz))
+        self.broadcaster.sendTransform(transforms)
+
+    def _add_collision_boxes(self):
+        client = self.create_client(ApplyPlanningScene, "apply_planning_scene")
+        if not client.wait_for_service(timeout_sec=10.0):
+            self.get_logger().warn("apply_planning_scene khong san sang, bo qua add_box")
+            return
+
+        def make_box(name, x, y, z, sx, sy, sz):
+            co = CollisionObject()
+            co.id = name
+            co.header.frame_id = self.base_frame
+            co.operation = CollisionObject.ADD
+            prim = SolidPrimitive()
+            prim.type = SolidPrimitive.BOX
+            prim.dimensions = [sx, sy, sz]
+            pose = Pose()
+            pose.position.x = float(x)
+            pose.position.y = float(y)
+            pose.position.z = float(z)
+            pose.orientation.w = 1.0
+            co.primitives = [prim]
+            co.primitive_poses = [pose]
+            return co
+
+        objects = []
+        
+        objects.append(make_box("work_table", 0.35, 0.0, -0.04, 1.0, 0.8, 0.04))
+
+        scene = PlanningScene()
+        scene.is_diff = True
+        scene.world.collision_objects = objects
+
+        req = ApplyPlanningScene.Request()
+        req.scene = scene
+        future = client.call_async(req)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
+        if future.result() and future.result().success:
+            self.get_logger().info("Da them collision box mat ban vao planning scene")
+        else:
+            self.get_logger().warn("Them collision boxes that bai")
+
+
+def main():
+    rclpy.init()
+    node = ScenePublisher()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

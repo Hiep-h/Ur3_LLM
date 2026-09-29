@@ -1,0 +1,13 @@
+objects:
+  red_cube:    {x: 0.28, y:  0.15, z: 0.02}
+  yellow_cube: {x: 0.28, y:  0.00, z: 0.02}
+  blue_cube:   {x: 0.28, y: -0.15, z: 0.02}
+
+zones:
+  zone_a:    {x: 0.40, y:  0.15, z: 0.005}
+  zone_b:    {x: 0.40, y:  0.00, z: 0.005}
+  zone_c:    {x: 0.40, y: -0.15, z: 0.005}
+  temp_zone: {x: 0.34, y:  0.30, z: 0.005}
+
+frame_id: "base_link"
+approach_offset_z: 0.15
